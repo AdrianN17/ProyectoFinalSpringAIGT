@@ -1,0 +1,212 @@
+openapi: 3.0.3
+info:
+  title: IGA Scanner API
+  description: >-
+    RAG-oriented API for iga-scanner: ask grounded questions over ingested PDF
+    documents, upload new PDFs for ingestion, and inspect prior chat history.
+    Uploaded PDFs are ingested into a single shared knowledge base — retrieval
+    in /chat is not scoped per session. `sessionId` only groups chat turns
+    together for history/auditing purposes.
+  version: 0.0.1
+servers:
+  - url: /api
+    description: Base API path
+
+tags:
+  - name: chat
+    description: Ask questions against the RAG pipeline
+  - name: history
+    description: Retrieve past chat traces
+  - name: pdf
+    description: PDF ingestion for the vector store
+
+paths:
+  /chat:
+    post:
+      tags: [chat]
+      summary: Ask a question grounded in the ingested documents
+      operationId: askChat
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChatRequest"
+      responses:
+        "200":
+          description: Generated answer, persisted as a history trace
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HistoryEntry"
+        "400":
+          description: Invalid request (e.g. blank question)
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+
+  /history/{session_id}:
+    get:
+      tags: [history]
+      summary: List chat history for a session, ordered by creation time
+      operationId: getSessionHistory
+      parameters:
+        - name: session_id
+          in: path
+          required: true
+          description: Session identifier grouping related chat traces
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: History entries for the session (empty if none found)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/HistoryEntry"
+        "400":
+          description: session_id is not a valid UUID
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+
+  /pdf/upload:
+    post:
+      tags: [pdf]
+      summary: Upload a PDF document to be chunked, embedded and indexed
+      description: >-
+        Ingests the document into the shared vector store knowledge base used
+        by /chat. Not associated with any chat session.
+      operationId: uploadPdf
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: PDF file to ingest
+              required:
+                - file
+      responses:
+        "201":
+          description: Document accepted and ingested into the vector store
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PdfUploadResponse"
+        "400":
+          description: Missing file or empty upload
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "415":
+          description: Uploaded file is not a PDF
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+
+components:
+  schemas:
+    ChatRequest:
+      type: object
+      properties:
+        sessionId:
+          type: string
+          format: uuid
+          description: >-
+            Existing session to append to; omit to start a new session. Only
+            used to group history entries — does not filter which documents
+            are retrieved (retrieval always searches the shared knowledge base).
+        question:
+          type: string
+          minLength: 1
+          example: What does clause 4.2 say about liability?
+        user:
+          type: string
+          description: Identifier of the requesting user, for auditing
+          nullable: true
+      required:
+        - question
+
+    HistoryEntry:
+      type: object
+      properties:
+        traceId:
+          type: string
+          format: uuid
+        sessionId:
+          type: string
+          format: uuid
+        question:
+          type: string
+        answer:
+          type: string
+        user:
+          type: string
+          nullable: true
+        inputTokens:
+          type: integer
+          nullable: true
+        outputTokens:
+          type: integer
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        retrievedContexts:
+          type: string
+          description: Serialized retrieved chunks used to ground the answer
+          nullable: true
+      required:
+        - traceId
+        - sessionId
+        - question
+        - answer
+        - createdAt
+
+    PdfUploadResponse:
+      type: object
+      properties:
+        documentId:
+          type: string
+          format: uuid
+        fileName:
+          type: string
+        chunkCount:
+          type: integer
+        status:
+          type: string
+          enum: [PROCESSED, FAILED]
+      required:
+        - documentId
+        - fileName
+        - chunkCount
+        - status
+
+    ProblemDetail:
+      type: object
+      description: RFC 7807 problem details
+      properties:
+        type:
+          type: string
+          format: uri
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+        instance:
+          type: string
+          format: uri

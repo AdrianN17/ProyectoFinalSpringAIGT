@@ -1,0 +1,37 @@
+databaseChangeLog:
+  - changeSet:
+      id: 003-create-documents-table
+      author: iga-scanner
+      comment: Catalog of ingested PDF documents (environmental commitments)
+      changes:
+        - createTable:
+            tableName: documents
+            columns:
+              - column:
+                  name: document_id
+                  type: uniqueidentifier
+                  constraints:
+                    nullable: false
+                    primaryKey: true
+                    primaryKeyName: pk_documents
+              - column:
+                  name: file_name
+                  type: nvarchar(500)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: chunk_count
+                  type: int
+                  constraints:
+                    nullable: false
+              - column:
+                  name: status
+                  type: varchar(20)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: datetime2
+                  defaultValueComputed: GETDATE()
+                  constraints:
+                    nullable: false

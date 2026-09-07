@@ -1,0 +1,8 @@
+databaseChangeLog:
+  - changeSet:
+      id: 001-baseline
+      author: iga-scanner
+      comment: Baseline changelog, no schema objects yet.
+      changes: []
+      tagDatabase:
+        tag: baseline

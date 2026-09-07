@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "skills": {
+    "cloud-solution-architect": {
+      "source": "microsoft/skills",
+      "sourceType": "github",
+      "skillPath": ".github/skills/cloud-solution-architect/SKILL.md",
+      "computedHash": "04615187312878e9e03535b6c8e293557bc685b796f8665a9eb16c72277774a7"
+    },
+    "microsoft-docs": {
+      "source": "microsoft/skills",
+      "sourceType": "github",
+      "skillPath": ".github/skills/microsoft-docs/SKILL.md",
+      "computedHash": "4f74ef0fb7127b151a00eee34cf7484414ea85965a2e7681b5775e9ee9484b37"
+    },
+    "skill-creator": {
+      "source": "microsoft/skills",
+      "sourceType": "github",
+      "skillPath": ".github/skills/skill-creator/SKILL.md",
+      "computedHash": "d912ae7c53ae76ee1714c499c34c246ddbc847d48b7982247e1bdedd573cf0ae"
+    }
+  }
+}

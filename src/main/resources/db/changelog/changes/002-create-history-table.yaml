@@ -1,0 +1,56 @@
+databaseChangeLog:
+  - changeSet:
+      id: 002-create-history-table
+      author: iga-scanner
+      comment: History table for RAG query traces (Azure SQL / SQL Server)
+      objectQuotingStrategy: QUOTE_ALL_OBJECTS
+      changes:
+        - createTable:
+            tableName: history
+            columns:
+              - column:
+                  name: trace_id
+                  type: uniqueidentifier
+                  constraints:
+                    nullable: false
+                    primaryKey: true
+                    primaryKeyName: pk_history
+              - column:
+                  name: session_id
+                  type: uniqueidentifier
+                  constraints:
+                    nullable: false
+              - column:
+                  name: question
+                  type: nvarchar(MAX)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: answer
+                  type: nvarchar(MAX)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: user
+                  type: varchar(255)
+              - column:
+                  name: input_tokens
+                  type: int
+              - column:
+                  name: output_tokens
+                  type: int
+              - column:
+                  name: created_at
+                  type: datetime2
+                  defaultValueComputed: GETDATE()
+                  constraints:
+                    nullable: false
+              - column:
+                  name: retrieved_contexts
+                  type: nvarchar(MAX)
+        - createIndex:
+            indexName: ix_history_session_id
+            tableName: history
+            columns:
+              - column:
+                  name: session_id
