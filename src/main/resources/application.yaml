@@ -18,12 +18,19 @@ spring:
   ai:
     vectorstore:
       qdrant:
-        host: https://a1c74484-2d4f-4eb5-8877-583182740d64.sa-east-1-0.aws.cloud.qdrant.io
+        host: a1c74484-2d4f-4eb5-8877-583182740d64.sa-east-1-0.aws.cloud.qdrant.io
         port: 6334
-        use-tls: false
+        use-tls: true
         api-key: ${QDRANT_API_KEY}
         collection-name: historicos
         initialize-schema: true
+    azure:
+      openai:
+        # Auth via Entra ID (see AzureOpenAiTokenCredentialConfig) — no api-key needed.
+        endpoint: https://azfnd01.openai.azure.com
+        embedding:
+          options:
+            deployment-name: text-embedding-3-small
 
 iga:
   scanner:
