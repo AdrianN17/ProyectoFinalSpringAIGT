@@ -2,12 +2,12 @@ spring:
   application:
     name: iga-scanner
   datasource:
-    url: ${DB_URL:jdbc:sqlserver://localhost:1433;databaseName=iga_scanner;encrypt=true;trustServerCertificate=true}
-    username: ${DB_USERNAME:sa}
-    password: ${DB_PASSWORD:}
+    url: jdbc:sqlserver://dbtestgt.database.windows.net;databaseName=free-sql-db-9472607;encrypt=false;trustServerCertificate=false;DB_CLOSE_DELAY=-1
+    username: adrian
+    password: ${SQLSERVER_PASSWORD}
   jpa:
     hibernate:
-      ddl-auto: validate
+      ddl-auto: update
   liquibase:
     enabled: true
     change-log: classpath:db/changelog/db.changelog-master.yaml
@@ -18,11 +18,11 @@ spring:
   ai:
     vectorstore:
       qdrant:
-        host: ${QDRANT_HOST:localhost}
-        port: ${QDRANT_PORT:6334}
-        use-tls: ${QDRANT_USE_TLS:false}
-        api-key: ${QDRANT_API_KEY:}
-        collection-name: ${QDRANT_COLLECTION:environmental-commitments}
+        host: https://a1c74484-2d4f-4eb5-8877-583182740d64.sa-east-1-0.aws.cloud.qdrant.io
+        port: 6334
+        use-tls: false
+        api-key: ${QDRANT_API_KEY}
+        collection-name: historicos
         initialize-schema: true
 
 iga:
@@ -30,17 +30,17 @@ iga:
     ai:
       # Which Azure AI Foundry model adapter to activate; swapping providers never touches
       # the application/domain layers, only this property (see ChatGenerationPort adapters).
-      provider: ${AI_PROVIDER:anthropic} # anthropic | azure-openai
+      provider: anthropic # anthropic | azure-openai
       # Auth is always Microsoft Entra ID via the local `az login` session (no API keys).
       # anthropic base-url shape: https://<resource-name>.services.ai.azure.com/anthropic
       # azure-openai base-url shape: https://<resource-name>.openai.azure.com
-      base-url: ${AZURE_AI_BASE_URL}
-      deployment-name: ${AZURE_AI_DEPLOYMENT:claude-haiku-4-5}
+      base-url: https://azfnd01.services.ai.azure.com/api/projects/proj-jira
+      deployment-name: claude-haiku-4-5
       max-tokens: 4096
       temperature: 0.0
     rag:
       # Guardrail: chunks scoring below this are treated as not-grounded, never passed to the model.
-      similarity-threshold: ${RAG_SIMILARITY_THRESHOLD:0.5}
+      similarity-threshold: 0.5
     pdf:
       # Staging folder for the original PDF and its converted Markdown, for tracking only.
-      process-dir: ${PDF_PROCESS_DIR:./process}
+      process-dir: /home/adrian/Escritorio/process

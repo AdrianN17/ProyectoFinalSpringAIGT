@@ -39,7 +39,7 @@ class PdfIngestionAdapter implements DocumentIngestionPort {
             PdfProcessingProperties properties) {
         this.vectorStore = vectorStore;
         this.documentCatalogPort = documentCatalogPort;
-        this.textSplitter = new TokenTextSplitter();
+        this.textSplitter = TokenTextSplitter.builder().build();
         this.processDir = Path.of(properties.processDir());
     }
 
