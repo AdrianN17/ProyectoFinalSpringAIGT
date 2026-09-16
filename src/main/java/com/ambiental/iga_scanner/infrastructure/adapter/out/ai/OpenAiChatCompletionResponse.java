@@ -16,8 +16,12 @@ record OpenAiChatCompletionResponse(List<Choice> choices, Usage usage) {
         return choices.get(0).message().content();
     }
 
+    String finishReason() {
+        return choices == null || choices.isEmpty() ? null : choices.get(0).finishReason();
+    }
+
     @JsonIgnoreProperties(ignoreUnknown = true)
-    record Choice(Message message) {
+    record Choice(Message message, @JsonProperty("finish_reason") String finishReason) {
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
@@ -25,6 +29,11 @@ record OpenAiChatCompletionResponse(List<Choice> choices, Usage usage) {
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
-    record Usage(@JsonProperty("prompt_tokens") Integer promptTokens, @JsonProperty("completion_tokens") Integer completionTokens) {
+    record Usage(@JsonProperty("prompt_tokens") Integer promptTokens, @JsonProperty("completion_tokens") Integer completionTokens,
+            @JsonProperty("completion_tokens_details") CompletionTokensDetails completionTokensDetails) {
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    record CompletionTokensDetails(@JsonProperty("reasoning_tokens") Integer reasoningTokens) {
     }
 }

@@ -35,19 +35,61 @@ spring:
 iga:
   scanner:
     ai:
-      # Which Azure AI Foundry model adapter to activate; swapping providers never touches
-      # the application/domain layers, only this property (see ChatGenerationPort adapters).
-      provider: anthropic # anthropic | azure-openai
       # Auth is always Microsoft Entra ID via the local `az login` session (no API keys).
-      # anthropic base-url shape: https://<resource-name>.services.ai.azure.com/anthropic
-      # azure-openai base-url shape: https://<resource-name>.openai.azure.com
-      base-url: https://azfnd01.services.ai.azure.com/api/projects/proj-jira
-      deployment-name: claude-haiku-4-5
-      max-tokens: 4096
-      temperature: 0.0
+      # This must be the Foundry *resource*-level endpoint, NOT the Foundry *project*
+      # endpoint (.../api/projects/<name>): the project endpoint is a different router that
+      # requires an api-version query parameter on every call except /openai/v1/*.
+      # gpt-5-mini is served at <resource>.services.ai.azure.com/openai/v1/chat/completions.
+      base-url: https://azfnd01.services.ai.azure.com
+      deployment-name: gpt-5-mini
+      # gpt-5-mini is a reasoning model: it uses max_completion_tokens (not max_tokens) and
+      # does not support temperature/top_p/penalty parameters (see AzureOpenAiChatGenerationAdapter).
+      # IMPORTANT: max_completion_tokens covers BOTH hidden reasoning_tokens AND the visible
+      # answer. If it's too low, the model can spend the whole budget "thinking" and return
+      # an empty answer (observed: output_tokens=4096=max_completion_tokens, 0 visible chars).
+      # The markdown-reorganization task echoes back content close to the original size
+      # (verbatim, not summarized), so this must be generous - well above the input token count.
+      max-completion-tokens: 32000
+      # Low effort is enough (and much cheaper/faster) for this task: it's a deterministic
+      # reorder/copy of text, not a task requiring deep reasoning. Reduces reasoning_tokens
+      # usage so more of max-completion-tokens is left for the actual visible answer.
+      reasoning-effort: low
     rag:
-      # Guardrail: chunks scoring below this are treated as not-grounded, never passed to the model.
-      similarity-threshold: 0.5
+      # Absolute floor: chunks scoring below this cosine-similarity value are discarded
+      # outright before the relative filter below even runs. It is completely independent
+      # from pdf.fidelity-min-ratio below, which governs the (unrelated) batch ingestion
+      # fidelity check.
+      # NOTE: text-embedding-3-small cosine scores for short queries vs. long paragraphs
+      # commonly land in the 0.3-0.5 range even for clearly correct matches (observed:
+      # 0.4772 for the exact right chunk on "titular del proyecto"). 0.5 is too strict for
+      # this embedding model and silently drops valid matches - kept below the true "no
+      # relation" range (~0.15-0.25) seen for unrelated chunks in the same query.
+      similarity-threshold: 0.35
+      # The real precision knob: after the absolute floor above, only chunks scoring within
+      # this margin of the BEST match for the current question are kept - every chunk from
+      # the same source document tends to cluster tightly (observed spread ~0.11 across 8
+      # chunks, both relevant and irrelevant), so a single global threshold can't tell them
+      # apart. This adapts per query instead: a narrow gap keeps only the 1-3 closest
+      # matches; raise it to allow more (looser) context into the answer.
+      max-score-gap: 0.05
     pdf:
-      # Staging folder for the original PDF and its converted Markdown, for tracking only.
+      # Staging folder: /process/{uuid}/original.pdf + base.md (verbatim), and, when
+      # reorganize-enabled, /process/{uuid}/classification-raw.md (raw LLM output) plus
+      # /process/{uuid}/extracted/*.md (one file per classified section).
       process-dir: /home/adrian/Escritorio/process
+      # When true, the verbatim base.md is sent through the chat LLM (ChatGenerationPort,
+      # gpt-5-mini) to be classified into logical sections with search tags, enforcing
+      # a fidelity guardrail (MarkdownFidelityGuard) against summarizing/rewriting/inventing
+      # data. Each section is staged individually and uploaded to Qdrant one at a time,
+      # tagged with the original file name and a document_id so the chatbot can always trace
+      # an answer back to its source PDF. If the AI call or the fidelity check fails, the
+      # whole upload fails. When false, falls back to the previous page-based batch chunking.
+      reorganize-enabled: true
+      # Minimum ratio (reorganized content chars / original content chars, letters+digits
+      # only) required for the AI-classified markdown to be accepted during batch ingestion
+      # (MarkdownFidelityGuard). Deliberately lenient by default: the reorganizer legitimately
+      # drops purely structural noise (e.g. "## file — página N" markers), so only large drops
+      # (likely summarization/omission) should trip this. Tune this ONLY to affect batch
+      # ingestion strictness - it is completely independent from rag.similarity-threshold
+      # above, which governs the (unrelated) chat-time vector search against Qdrant.
+      fidelity-min-ratio: 0.75
