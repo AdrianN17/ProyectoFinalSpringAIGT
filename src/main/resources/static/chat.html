@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html lang="es" class="h-full">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>IGA Scanner · Chat RAG</title>
+<link rel="icon" href="data:," />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/lib/marked.umd.min.js"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        fontFamily: { sans: ['Inter', 'ui-sans-serif', 'system-ui'] },
+        colors: {
+          brand: {
+            50: '#eff6ff', 100: '#dbeafe', 200: '#bfdbfe', 300: '#93c5fd',
+            400: '#60a5fa', 500: '#3b82f6', 600: '#2563eb', 700: '#1d4ed8',
+            800: '#1e40af', 900: '#1e3a8a'
+          }
+        },
+        animation: { 'bounce-slow': 'bounce 1.4s infinite' }
+      }
+    }
+  };
+</script>
+<style>
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 9999px; }
+  .dark ::-webkit-scrollbar-thumb { background-color: #475569; }
+  .prose-answer p { margin: 0.4rem 0; }
+  .prose-answer ul, .prose-answer ol { margin: 0.4rem 0 0.4rem 1.25rem; }
+  .prose-answer code { background: rgba(148,163,184,0.2); padding: 0.1rem 0.3rem; border-radius: 0.25rem; font-size: 0.85em; }
+  .prose-answer strong { font-weight: 700; }
+  .fade-in { animation: fadeIn 0.25s ease-out; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(4px);} to { opacity: 1; transform: translateY(0);} }
+  .typing-dot { animation: typingBounce 1.2s infinite; }
+  .typing-dot:nth-child(2) { animation-delay: 0.15s; }
+  .typing-dot:nth-child(3) { animation-delay: 0.3s; }
+  @keyframes typingBounce { 0%, 60%, 100% { transform: translateY(0); opacity: .4;} 30% { transform: translateY(-4px); opacity: 1;} }
+</style>
+</head>
+<body class="h-full bg-slate-100 text-slate-800 font-sans antialiased">
+<div id="app" class="flex h-full w-full overflow-hidden">
+
+  <!-- ===================== SIDEBAR ===================== -->
+  <aside class="hidden md:flex md:w-80 lg:w-96 flex-col bg-slate-900 text-slate-100 shrink-0">
+    <div class="px-5 py-5 border-b border-slate-700/60 flex items-center gap-3">
+      <div class="h-9 w-9 rounded-xl bg-gradient-to-br from-brand-400 to-brand-700 flex items-center justify-center shadow-lg shadow-brand-900/40">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6M9 8h1m4 13-3-3H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-4l-3 3Z"/>
+        </svg>
+      </div>
+      <div>
+        <h1 class="text-sm font-bold tracking-tight leading-none">IGA Scanner</h1>
+        <p class="text-[11px] text-slate-400 mt-0.5">RAG · Azure AI Foundry</p>
+      </div>
+    </div>
+
+    <!-- Settings -->
+    <div class="px-5 py-4 border-b border-slate-700/60 space-y-3">
+      <button id="toggleSettings" class="w-full flex items-center justify-between text-xs font-semibold text-slate-300 hover:text-white transition">
+        <span class="flex items-center gap-1.5">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 0 0 2.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 0 0 1.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 0 0-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 0 0-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 0 0-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 0 0-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 0 0 1.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065Z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/></svg>
+          Configuración de conexión
+        </span>
+        <svg id="settingsChevron" class="h-3.5 w-3.5 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="m19 9-7 7-7-7"/></svg>
+      </button>
+      <div id="settingsPanel" class="hidden space-y-2.5 pt-1">
+        <div>
+          <label class="text-[11px] uppercase tracking-wide text-slate-400 font-semibold">API Base URL</label>
+          <input id="apiBaseUrl" type="text" placeholder="http://localhost:8080"
+                 class="mt-1 w-full rounded-lg bg-slate-800 border border-slate-700 text-xs px-2.5 py-2 text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-brand-500"/>
+        </div>
+        <div>
+          <label class="text-[11px] uppercase tracking-wide text-slate-400 font-semibold">Usuario</label>
+          <input id="userName" type="text" placeholder="invitado"
+                 class="mt-1 w-full rounded-lg bg-slate-800 border border-slate-700 text-xs px-2.5 py-2 text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-brand-500"/>
+        </div>
+      </div>
+    </div>
+
+    <!-- Session -->
+    <div class="px-5 py-4 border-b border-slate-700/60">
+      <div class="flex items-center justify-between">
+        <span class="text-[11px] uppercase tracking-wide text-slate-400 font-semibold">Sesión activa</span>
+        <button id="newSessionBtn" title="Nueva sesión" class="text-slate-400 hover:text-white transition">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+        </button>
+      </div>
+      <div class="mt-2 flex items-center gap-2">
+        <code id="sessionIdLabel" class="flex-1 truncate text-[11px] bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-brand-300"></code>
+        <button id="copySessionBtn" title="Copiar" class="p-1.5 rounded-lg bg-slate-800 border border-slate-700 hover:bg-slate-700 transition text-slate-300">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.666 3.888A2.25 2.25 0 0 0 13.5 2.25h-3c-1.03 0-1.9.693-2.166 1.638m7.332 0c.055.194.084.4.084.612v0a.75.75 0 0 1-.75.75H9a.75.75 0 0 1-.75-.75v0c0-.212.03-.418.084-.612m7.332 0c.646.049 1.288.11 1.927.184 1.1.128 1.907 1.077 1.907 2.185V19.5a2.25 2.25 0 0 1-2.25 2.25H6.75A2.25 2.25 0 0 1 4.5 19.5V6.257c0-1.108.806-2.057 1.907-2.185a48.208 48.208 0 0 1 1.927-.184"/></svg>
+        </button>
+      </div>
+      <button id="loadHistoryBtn" class="mt-2 w-full text-[11px] font-semibold text-brand-300 hover:text-brand-200 flex items-center justify-center gap-1 py-1.5 rounded-lg border border-slate-700 hover:bg-slate-800 transition">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99"/></svg>
+        Recargar historial de esta sesión
+      </button>
+      <button id="toggleSessionsList" class="mt-1.5 w-full text-[11px] font-semibold text-slate-400 hover:text-slate-200 flex items-center justify-center gap-1 py-1.5 rounded-lg border border-slate-700/60 hover:bg-slate-800 transition">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12.76c0 1.6 1.123 2.994 2.707 3.227 1.129.166 2.27.293 3.423.379.35.026.67.21.865.501L12 21l2.755-4.133a1.14 1.14 0 0 1 .865-.501 48.172 48.172 0 0 0 3.423-.379c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0 0 12 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018Z"/></svg>
+        Ver todas las sesiones registradas
+      </button>
+      <div id="sessionsList" class="hidden mt-2 max-h-40 overflow-y-auto space-y-1"></div>
+    </div>
+
+    <!-- Document filter -->
+    <div class="px-5 py-4 border-b border-slate-700/60">
+      <div class="flex items-center justify-between">
+        <span class="text-[11px] uppercase tracking-wide text-slate-400 font-semibold">Filtrar por documentos</span>
+        <button id="refreshDocsBtn" title="Actualizar" class="text-slate-400 hover:text-white transition">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99"/></svg>
+        </button>
+      </div>
+      <p class="text-[10px] text-slate-500 mt-1">Sin selección = buscar en todos los documentos ingeridos.</p>
+      <div id="docFilterList" class="mt-2 max-h-40 overflow-y-auto space-y-1">
+        <p class="text-[11px] text-slate-500 italic">Cargando…</p>
+      </div>
+      <button id="clearDocFilterBtn" class="hidden mt-1.5 text-[11px] font-semibold text-amber-300 hover:text-amber-200">Quitar filtro (buscar en todos)</button>
+    </div>
+
+    <!-- PDF Upload -->
+    <div class="px-5 py-4 flex-1 overflow-y-auto">
+      <span class="text-[11px] uppercase tracking-wide text-slate-400 font-semibold">Ingesta de documentos</span>
+      <label id="dropZone" for="fileInput"
+             class="mt-2 flex flex-col items-center justify-center gap-1.5 border-2 border-dashed border-slate-700 rounded-xl px-4 py-6 text-center cursor-pointer hover:border-brand-500 hover:bg-slate-800/60 transition">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3"/></svg>
+        <span class="text-xs font-medium text-slate-300">Arrastra un PDF o haz clic</span>
+        <span class="text-[10px] text-slate-500">Solo application/pdf</span>
+        <input id="fileInput" type="file" accept="application/pdf" class="hidden"/>
+      </label>
+      <div id="uploadProgress" class="hidden mt-3 flex items-center gap-2 text-xs text-brand-300">
+        <svg class="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+        <span id="uploadProgressText">Subiendo y vectorizando…</span>
+      </div>
+      <div id="uploadList" class="mt-3 space-y-2"></div>
+    </div>
+
+    <div class="px-5 py-3 border-t border-slate-700/60 text-[10px] text-slate-500">
+      Consume <code class="text-slate-400">/api/pdf/upload</code>, <code class="text-slate-400">/api/chat</code> y <code class="text-slate-400">/api/history/{'{'}sessionId{'}'}</code>
+    </div>
+  </aside>
+
+  <!-- ===================== MAIN ===================== -->
+  <main class="flex-1 flex flex-col min-w-0 bg-slate-100">
+    <!-- Topbar (mobile-friendly) -->
+    <header class="flex items-center justify-between px-4 md:px-8 py-3 bg-white border-b border-slate-200 shadow-sm shrink-0">
+      <div class="flex items-center gap-2">
+        <div class="md:hidden h-8 w-8 rounded-lg bg-gradient-to-br from-brand-400 to-brand-700 flex items-center justify-center">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6M9 8h1"/></svg>
+        </div>
+        <h2 class="text-sm font-bold text-slate-700">Chat sobre documentos ingeridos</h2>
+      </div>
+      <div class="flex items-center gap-3">
+        <span id="connStatus" class="hidden md:flex items-center gap-1.5 text-[11px] font-medium text-slate-500">
+          <span id="connDot" class="h-2 w-2 rounded-full bg-slate-300"></span> API sin verificar
+        </span>
+        <button id="clearChatBtn" class="text-xs font-semibold text-slate-500 hover:text-rose-600 transition flex items-center gap-1">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"/></svg>
+          Limpiar chat
+        </button>
+      </div>
+    </header>
+
+    <!-- Messages -->
+    <div id="messages" class="flex-1 overflow-y-auto px-4 md:px-8 py-6 space-y-5">
+      <div class="max-w-3xl mx-auto text-center py-16">
+        <div class="mx-auto h-14 w-14 rounded-2xl bg-gradient-to-br from-brand-400 to-brand-700 flex items-center justify-center shadow-lg shadow-brand-200 mb-4">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M8.625 12a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H8.25m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H12m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 0 1-2.555-.337A5.972 5.972 0 0 1 5.41 20.97a5.969 5.969 0 0 1-.474-.065 4.48 4.48 0 0 0 .978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25Z"/></svg>
+        </div>
+        <h3 class="text-lg font-bold text-slate-700">Pregúntale a tus documentos</h3>
+        <p class="text-sm text-slate-500 mt-1 max-w-md mx-auto">
+          Sube un PDF desde el panel lateral y luego haz preguntas. Cada respuesta muestra las fuentes exactas
+          recuperadas de Qdrant que la fundamentan.
+        </p>
+      </div>
+    </div>
+
+    <!-- Composer -->
+    <div class="border-t border-slate-200 bg-white px-4 md:px-8 py-4 shrink-0">
+      <div id="errorBanner" class="hidden max-w-3xl mx-auto mb-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 text-xs px-3 py-2 flex items-start gap-2">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z"/></svg>
+        <span id="errorBannerText" class="flex-1"></span>
+        <button id="errorBannerClose" class="text-rose-400 hover:text-rose-700">&times;</button>
+      </div>
+      <form id="chatForm" class="max-w-3xl mx-auto flex items-end gap-2">
+        <textarea id="questionInput" rows="1" placeholder="Escribe tu pregunta sobre los documentos ingeridos…"
+          class="flex-1 resize-none rounded-2xl border border-slate-300 px-4 py-3 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent max-h-40"></textarea>
+        <button type="submit" id="sendBtn"
+          class="h-11 w-11 shrink-0 rounded-full bg-brand-600 hover:bg-brand-700 disabled:opacity-40 disabled:cursor-not-allowed text-white flex items-center justify-center shadow-lg shadow-brand-200 transition">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 12 3.269 3.126A59.77 59.77 0 0 1 21.485 12 59.77 59.77 0 0 1 3.269 20.874L6 12Zm0 0h7.5"/></svg>
+        </button>
+      </form>
+      <p class="max-w-3xl mx-auto mt-2 text-[11px] text-slate-400">Enter envía · Shift+Enter salto de línea</p>
+    </div>
+  </main>
+</div>
+
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+
+  // ---------- persisted settings ----------
+  const store = {
+    get(key, fallback) { return localStorage.getItem(key) ?? fallback; },
+    set(key, val) { localStorage.setItem(key, val); }
+  };
+
+  // Default to the Spring Boot server port (8080), not window.location.origin, because this
+  // file may be opened via a different local server (e.g. IDE preview on another port) that
+  // has no API behind it.
+  const defaultBaseUrl = 'http://localhost:8080';
+  let apiBaseUrl = store.get('igaBaseUrl', defaultBaseUrl);
+  let userName = store.get('igaUser', 'invitado');
+  let sessionId = store.get('igaSession', crypto.randomUUID());
+  store.set('igaSession', sessionId);
+
+  $('apiBaseUrl').value = apiBaseUrl;
+  $('apiBaseUrl').placeholder = defaultBaseUrl;
+  $('userName').value = userName;
+  $('sessionIdLabel').textContent = sessionId;
+
+  $('apiBaseUrl').addEventListener('change', (e) => {
+    apiBaseUrl = e.target.value.trim().replace(/\/+$/, '') || defaultBaseUrl;
+    store.set('igaBaseUrl', apiBaseUrl);
+    checkConnection();
+  });
+  $('userName').addEventListener('change', (e) => {
+    userName = e.target.value.trim() || 'invitado';
+    store.set('igaUser', userName);
+  });
+
+  function apiUrl(path) {
+    return (apiBaseUrl || defaultBaseUrl) + path;
+  }
+
+  // ---------- settings collapsible ----------
+  $('toggleSettings').addEventListener('click', () => {
+    $('settingsPanel').classList.toggle('hidden');
+    $('settingsChevron').classList.toggle('rotate-180');
+  });
+
+  // ---------- session management ----------
+  $('newSessionBtn').addEventListener('click', () => {
+    sessionId = crypto.randomUUID();
+    store.set('igaSession', sessionId);
+    $('sessionIdLabel').textContent = sessionId;
+    clearMessages(true);
+  });
+  $('copySessionBtn').addEventListener('click', async () => {
+    await navigator.clipboard.writeText(sessionId);
+    flashButton($('copySessionBtn'));
+  });
+  function flashButton(btn) {
+    const original = btn.innerHTML;
+    btn.innerHTML = '<span class="text-[10px] px-1 text-emerald-400 font-semibold">✓</span>';
+    setTimeout(() => { btn.innerHTML = original; }, 1200);
+  }
+
+  $('clearChatBtn').addEventListener('click', () => clearMessages(false));
+
+  function clearMessages(showWelcome) {
+    $('messages').innerHTML = showWelcome ? welcomeHtml() : '';
+    if (!showWelcome && $('messages').children.length === 0) {
+      $('messages').innerHTML = welcomeHtml();
+    }
+  }
+  function welcomeHtml() {
+    return `<div class="max-w-3xl mx-auto text-center py-16">
+        <div class="mx-auto h-14 w-14 rounded-2xl bg-gradient-to-br from-brand-400 to-brand-700 flex items-center justify-center shadow-lg shadow-brand-200 mb-4">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M8.625 12a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H8.25m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H12m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 0 1-2.555-.337A5.972 5.972 0 0 1 5.41 20.97a5.969 5.969 0 0 1-.474-.065 4.48 4.48 0 0 0 .978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25Z"/></svg>
+        </div>
+        <h3 class="text-lg font-bold text-slate-700">Pregúntale a tus documentos</h3>
+        <p class="text-sm text-slate-500 mt-1 max-w-md mx-auto">Sube un PDF desde el panel lateral y luego haz preguntas.</p>
+      </div>`;
+  }
+
+  // ---------- document filter state ----------
+  let selectedDocuments = new Set();
+
+  async function loadDocumentFilter() {
+    const list = $('docFilterList');
+    try {
+      const res = await fetch(apiUrl('/api/documents'));
+      if (!res.ok) {
+        list.innerHTML = `<p class="text-[11px] text-rose-400">Error ${res.status} al cargar documentos</p>`;
+        return;
+      }
+      const docs = await res.json();
+      if (!docs.length) {
+        list.innerHTML = '<p class="text-[11px] text-slate-500 italic">Sin documentos ingeridos todavía</p>';
+        return;
+      }
+      list.innerHTML = docs.map((d) => `
+        <label class="flex items-start gap-2 rounded-lg px-2 py-1.5 hover:bg-slate-800/60 cursor-pointer transition">
+          <input type="checkbox" data-doc-id="${d.documentId}" class="doc-filter-checkbox mt-0.5 rounded border-slate-600 bg-slate-800 text-brand-500 focus:ring-brand-500 focus:ring-offset-slate-900"/>
+          <span class="min-w-0">
+            <span class="block text-xs text-slate-200 truncate" title="${escapeHtml(d.fileName)}">${escapeHtml(d.fileName)}</span>
+            <span class="block text-[10px] text-slate-500">${new Date(d.createdAt).toLocaleDateString()} · ${d.documentId.slice(0, 8)}…</span>
+          </span>
+        </label>`).join('');
+      list.querySelectorAll('.doc-filter-checkbox').forEach((cb) => {
+        cb.checked = selectedDocuments.has(cb.dataset.docId);
+        cb.addEventListener('change', () => {
+          if (cb.checked) selectedDocuments.add(cb.dataset.docId);
+          else selectedDocuments.delete(cb.dataset.docId);
+          updateClearFilterVisibility();
+        });
+      });
+      updateClearFilterVisibility();
+    } catch (err) {
+      list.innerHTML = `<p class="text-[11px] text-rose-400">Sin conexión: ${escapeHtml(err.message)}</p>`;
+    }
+  }
+  function updateClearFilterVisibility() {
+    $('clearDocFilterBtn').classList.toggle('hidden', selectedDocuments.size === 0);
+  }
+  $('refreshDocsBtn').addEventListener('click', loadDocumentFilter);
+  $('clearDocFilterBtn').addEventListener('click', () => {
+    selectedDocuments.clear();
+    document.querySelectorAll('.doc-filter-checkbox').forEach((cb) => { cb.checked = false; });
+    updateClearFilterVisibility();
+  });
+
+  // ---------- registered sessions list ----------
+  $('toggleSessionsList').addEventListener('click', async () => {
+    const box = $('sessionsList');
+    box.classList.toggle('hidden');
+    if (box.classList.contains('hidden')) return;
+    box.innerHTML = '<p class="text-[11px] text-slate-500 italic px-1">Cargando…</p>';
+    try {
+      const res = await fetch(apiUrl('/api/history/sessions'));
+      if (!res.ok) { box.innerHTML = `<p class="text-[11px] text-rose-400 px-1">Error ${res.status}</p>`; return; }
+      const sessions = await res.json();
+      if (!sessions.length) {
+        box.innerHTML = '<p class="text-[11px] text-slate-500 italic px-1">Sin sesiones registradas</p>';
+        return;
+      }
+      box.innerHTML = sessions.map((s) => `
+        <button data-session="${s.sessionId}" class="session-pick w-full text-left rounded-lg px-2 py-1.5 hover:bg-slate-800/60 transition">
+          <span class="block text-[11px] text-brand-300 truncate">${s.sessionId}</span>
+          <span class="block text-[10px] text-slate-500">${new Date(s.lastActivityAt).toLocaleString()} · ${s.messageCount} mensaje${s.messageCount === 1 ? '' : 's'}</span>
+        </button>`).join('');
+      box.querySelectorAll('.session-pick').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          sessionId = btn.getAttribute('data-session');
+          store.set('igaSession', sessionId);
+          $('sessionIdLabel').textContent = sessionId;
+          $('loadHistoryBtn').click();
+        });
+      });
+    } catch (err) {
+      box.innerHTML = `<p class="text-[11px] text-rose-400 px-1">Sin conexión: ${escapeHtml(err.message)}</p>`;
+    }
+  });
+
+  // ---------- error banner ----------
+  function showError(msg) {
+    $('errorBannerText').textContent = msg;
+    $('errorBanner').classList.remove('hidden');
+  }
+  $('errorBannerClose').addEventListener('click', () => $('errorBanner').classList.add('hidden'));
+
+  async function parseApiError(res) {
+    try {
+      const body = await res.json();
+      if (body && (body.detail || body.title)) {
+        return `${body.title ?? 'Error'} (${body.status ?? res.status}): ${body.detail ?? ''}`;
+      }
+    } catch (_) { /* not JSON */ }
+    return `Error HTTP ${res.status} ${res.statusText}`;
+  }
+
+  // ---------- connection check ----------
+  async function checkConnection() {
+    const dot = $('connDot');
+    const label = $('connStatus');
+    try {
+      const res = await fetch(apiUrl(`/api/history/${sessionId}`), { method: 'GET' });
+      if (res.ok) {
+        dot.className = 'h-2 w-2 rounded-full bg-emerald-500';
+        label.querySelector('span:last-child')?.remove();
+        label.lastChild.textContent = ' API conectada';
+      } else {
+        dot.className = 'h-2 w-2 rounded-full bg-amber-500';
+        label.lastChild.textContent = ` API respondió ${res.status}`;
+      }
+    } catch (e) {
+      dot.className = 'h-2 w-2 rounded-full bg-rose-500';
+      label.lastChild.textContent = ' Sin conexión con la API';
+    }
+  }
+
+  // ---------- markdown render helper ----------
+  function renderMarkdown(text) {
+    try { return marked.parse(text ?? ''); } catch (_) { return escapeHtml(text ?? ''); }
+  }
+  function escapeHtml(str) {
+    return str.replace(/[&<>"']/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+  }
+
+  // ---------- parse retrievedContexts ----------
+  // Format produced by ChatService.serializeContexts: "[source:page] content" chunks joined by "\n---\n"
+  function parseContexts(raw) {
+    if (!raw) return [];
+    return raw.split('\n---\n').map((block) => {
+      const match = block.match(/^\[([^\]]+)\]\s*([\s\S]*)$/);
+      if (!match) return { source: 'Desconocido', page: null, preview: block };
+      let [, header, content] = match;
+      let source = header, page = null;
+      const lastColon = header.lastIndexOf(':');
+      if (lastColon !== -1 && /^\d+$/.test(header.slice(lastColon + 1))) {
+        source = header.slice(0, lastColon);
+        page = header.slice(lastColon + 1);
+      }
+      return { source, page, preview: content.trim() };
+    }).filter((c) => c.preview);
+  }
+
+  function sourcesBadgeHtml(contexts) {
+    if (!contexts.length) return '';
+    const chips = contexts.map((c, i) => `
+      <button data-ctx-idx="${i}" class="ctx-toggle inline-flex items-center gap-1 rounded-full bg-brand-50 hover:bg-brand-100 border border-brand-200 text-brand-700 text-[11px] font-medium px-2.5 py-1 transition">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z"/></svg>
+        ${escapeHtml(c.source)}${c.page ? ' · p.' + c.page : ''}
+      </button>`).join('');
+    return `<div class="flex flex-wrap gap-1.5 mt-2.5">${chips}</div>`;
+  }
+
+  function contextDetailHtml(contexts) {
+    if (!contexts.length) return '';
+    const items = contexts.map((c, i) => `
+      <div data-ctx-detail="${i}" class="hidden mt-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+        <div class="flex items-center justify-between mb-1">
+          <span class="text-[11px] font-bold text-slate-600">${escapeHtml(c.source)}${c.page ? ' · página ' + c.page : ''}</span>
+        </div>
+        <p class="text-[11px] text-slate-500 leading-relaxed whitespace-pre-wrap font-mono">${escapeHtml(c.preview.slice(0, 900))}${c.preview.length > 900 ? '…' : ''}</p>
+      </div>`).join('');
+    return items;
+  }
+
+  // ---------- message rendering ----------
+  function appendUserMessage(question) {
+    if ($('messages').querySelector('.py-16')) $('messages').innerHTML = '';
+    const filterCount = selectedDocuments.size;
+    const el = document.createElement('div');
+    el.className = 'max-w-3xl mx-auto flex flex-col items-end fade-in';
+    el.innerHTML = `
+      ${filterCount ? `<span class="mb-1 text-[10px] text-slate-400">Consultando ${filterCount} documento${filterCount > 1 ? 's' : ''} seleccionado${filterCount > 1 ? 's' : ''}</span>` : ''}
+      <div class="max-w-[80%] bg-brand-600 text-white rounded-2xl rounded-br-sm px-4 py-2.5 text-sm shadow-md">
+        ${escapeHtml(question)}
+      </div>`;
+    $('messages').appendChild(el);
+    scrollToBottom();
+  }
+
+  function appendTypingIndicator() {
+    const el = document.createElement('div');
+    el.id = 'typingIndicator';
+    el.className = 'max-w-3xl mx-auto flex justify-start fade-in';
+    el.innerHTML = `
+      <div class="bg-white border border-slate-200 rounded-2xl rounded-bl-sm px-4 py-3 shadow-sm flex items-center gap-1.5">
+        <span class="h-2 w-2 rounded-full bg-slate-400 typing-dot"></span>
+        <span class="h-2 w-2 rounded-full bg-slate-400 typing-dot"></span>
+        <span class="h-2 w-2 rounded-full bg-slate-400 typing-dot"></span>
+      </div>`;
+    $('messages').appendChild(el);
+    scrollToBottom();
+  }
+  function removeTypingIndicator() { $('typingIndicator')?.remove(); }
+
+  function appendAssistantMessage(entry) {
+    const contexts = parseContexts(entry.retrievedContexts);
+    const el = document.createElement('div');
+    el.className = 'max-w-3xl mx-auto flex justify-start fade-in';
+    el.innerHTML = `
+      <div class="max-w-[85%] bg-white border border-slate-200 rounded-2xl rounded-bl-sm px-4 py-3 shadow-sm">
+        <div class="prose-answer text-sm text-slate-700">${renderMarkdown(entry.answer)}</div>
+        ${sourcesBadgeHtml(contexts)}
+        ${contextDetailHtml(contexts)}
+        <div class="mt-2.5 pt-2 border-t border-slate-100 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-slate-400">
+          <span title="Tokens de entrada">⇢ ${entry.inputTokens ?? '—'} in</span>
+          <span title="Tokens de salida">⇠ ${entry.outputTokens ?? '—'} out</span>
+          <span title="Fecha">${entry.createdAt ? new Date(entry.createdAt).toLocaleString() : ''}</span>
+          ${contexts.length ? `<span>${contexts.length} fragmento${contexts.length > 1 ? 's' : ''} recuperado${contexts.length > 1 ? 's' : ''}</span>` : '<span class="text-amber-500">Sin fragmentos recuperados</span>'}
+        </div>
+      </div>`;
+    el.querySelectorAll('.ctx-toggle').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const idx = btn.getAttribute('data-ctx-idx');
+        el.querySelector(`[data-ctx-detail="${idx}"]`)?.classList.toggle('hidden');
+      });
+    });
+    $('messages').appendChild(el);
+    scrollToBottom();
+  }
+
+  function scrollToBottom() {
+    const box = $('messages');
+    box.scrollTop = box.scrollHeight;
+  }
+
+  // ---------- chat submit ----------
+  const form = $('chatForm');
+  const questionInput = $('questionInput');
+  const sendBtn = $('sendBtn');
+
+  questionInput.addEventListener('input', () => {
+    questionInput.style.height = 'auto';
+    questionInput.style.height = Math.min(questionInput.scrollHeight, 160) + 'px';
+  });
+  questionInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      form.requestSubmit();
+    }
+  });
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const question = questionInput.value.trim();
+    if (!question) return;
+    $('errorBanner').classList.add('hidden');
+    appendUserMessage(question);
+    questionInput.value = '';
+    questionInput.style.height = 'auto';
+    sendBtn.disabled = true;
+    appendTypingIndicator();
+    try {
+      const res = await fetch(apiUrl('/api/chat'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sessionId,
+          question,
+          user: userName,
+          documents: Array.from(selectedDocuments)
+        })
+      });
+      removeTypingIndicator();
+      if (!res.ok) {
+        showError(await parseApiError(res));
+        return;
+      }
+      const entry = await res.json();
+      appendAssistantMessage(entry);
+    } catch (err) {
+      removeTypingIndicator();
+      showError('No se pudo contactar la API: ' + err.message);
+    } finally {
+      sendBtn.disabled = false;
+      questionInput.focus();
+    }
+  });
+
+  // ---------- history ----------
+  $('loadHistoryBtn').addEventListener('click', async () => {
+    $('errorBanner').classList.add('hidden');
+    try {
+      const res = await fetch(apiUrl(`/api/history/${sessionId}`));
+      if (!res.ok) { showError(await parseApiError(res)); return; }
+      const entries = await res.json();
+      $('messages').innerHTML = '';
+      if (!entries.length) {
+        $('messages').innerHTML = welcomeHtml();
+        return;
+      }
+      entries
+        .slice()
+        .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt))
+        .forEach((entry) => {
+          appendUserMessage(entry.question);
+          appendAssistantMessage(entry);
+        });
+    } catch (err) {
+      showError('No se pudo cargar el historial: ' + err.message);
+    }
+  });
+
+  // ---------- PDF upload ----------
+  const fileInput = $('fileInput');
+  const dropZone = $('dropZone');
+
+  fileInput.addEventListener('change', () => {
+    if (fileInput.files.length) uploadFile(fileInput.files[0]);
+  });
+  ['dragover', 'dragenter'].forEach((evt) =>
+    dropZone.addEventListener(evt, (e) => { e.preventDefault(); dropZone.classList.add('border-brand-500', 'bg-slate-800/60'); })
+  );
+  ['dragleave', 'drop'].forEach((evt) =>
+    dropZone.addEventListener(evt, (e) => { e.preventDefault(); dropZone.classList.remove('border-brand-500', 'bg-slate-800/60'); })
+  );
+  dropZone.addEventListener('drop', (e) => {
+    const file = e.dataTransfer.files?.[0];
+    if (file) uploadFile(file);
+  });
+
+  async function uploadFile(file) {
+    if (file.type !== 'application/pdf') {
+      showError('Solo se admiten archivos PDF (application/pdf).');
+      return;
+    }
+    $('errorBanner').classList.add('hidden');
+    $('uploadProgress').classList.remove('hidden');
+    $('uploadProgressText').textContent = `Subiendo "${file.name}"…`;
+    const formData = new FormData();
+    formData.append('file', file);
+    try {
+      const res = await fetch(apiUrl('/api/pdf/upload'), { method: 'POST', body: formData });
+      if (!res.ok) {
+        showError(await parseApiError(res));
+        addUploadEntry(file.name, null, 'error');
+        return;
+      }
+      const data = await res.json();
+      addUploadEntry(data.fileName, data, data.status ?? 'ok');
+      loadDocumentFilter();
+    } catch (err) {
+      showError('Fallo al subir el PDF: ' + err.message);
+      addUploadEntry(file.name, null, 'error');
+    } finally {
+      $('uploadProgress').classList.add('hidden');
+      fileInput.value = '';
+    }
+  }
+
+  function addUploadEntry(fileName, data, status) {
+    const isError = status === 'error';
+    const statusColor = isError ? 'bg-rose-500/20 text-rose-300 border-rose-500/40'
+      : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40';
+    const el = document.createElement('div');
+    el.className = 'fade-in rounded-lg border border-slate-700 bg-slate-800/60 px-3 py-2';
+    el.innerHTML = `
+      <div class="flex items-center justify-between gap-2">
+        <span class="text-xs font-medium text-slate-200 truncate">${escapeHtml(fileName)}</span>
+        <span class="shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded-full border ${statusColor}">${escapeHtml(String(status))}</span>
+      </div>
+      ${data ? `<div class="mt-1 text-[10px] text-slate-400">chunks: ${data.chunkCount} · id: ${String(data.documentId).slice(0, 8)}…</div>` : ''}
+    `;
+    $('uploadList').prepend(el);
+  }
+
+  // ---------- init ----------
+  checkConnection();
+  loadDocumentFilter();
+})();
+</script>
+</body>
+</html>

@@ -4,6 +4,7 @@ import static com.ambiental.iga_scanner.infrastructure.adapter.out.persistence.H
 import static com.ambiental.iga_scanner.infrastructure.adapter.out.persistence.HistoryRepositoryAdapterMessageError.SAVE_FAILED;
 
 import com.ambiental.iga_scanner.application.port.out.HistoryRepositoryPort;
+import com.ambiental.iga_scanner.domain.ChatSessionSummary;
 import com.ambiental.iga_scanner.domain.HistoryTrace;
 import java.util.List;
 import java.util.UUID;
@@ -53,6 +54,18 @@ class HistoryRepositoryAdapter implements HistoryRepositoryPort {
                             entity.getOutputTokens(),
                             entity.getCreatedAt(),
                             entity.getRetrievedContexts()))
+                    .toList();
+        } catch (DataAccessException e) {
+            throw new PersistenceException(QUERY_FAILED, e);
+        }
+    }
+
+    @Override
+    public List<ChatSessionSummary> findAllSessions() {
+        try {
+            return jpaRepository.findSessionSummaries().stream()
+                    .map(projection -> new ChatSessionSummary(
+                            projection.getSessionId(), projection.getLastActivityAt(), projection.getMessageCount()))
                     .toList();
         } catch (DataAccessException e) {
             throw new PersistenceException(QUERY_FAILED, e);

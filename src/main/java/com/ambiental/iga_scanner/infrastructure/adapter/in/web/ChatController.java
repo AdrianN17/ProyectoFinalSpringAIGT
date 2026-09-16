@@ -20,7 +20,8 @@ class ChatController {
 
     @PostMapping("/api/chat")
     HistoryEntryDto ask(@Valid @RequestBody ChatRequestDto request) {
-        var trace = askChatUseCase.ask(new ChatCommand(request.sessionId(), request.question(), request.user()));
+        var trace = askChatUseCase.ask(
+                new ChatCommand(request.sessionId(), request.question(), request.user(), request.documents()));
         return HistoryEntryDto.from(trace);
     }
 }

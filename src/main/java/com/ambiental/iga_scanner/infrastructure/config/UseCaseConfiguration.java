@@ -2,6 +2,8 @@ package com.ambiental.iga_scanner.infrastructure.config;
 
 import com.ambiental.iga_scanner.application.port.in.AskChatUseCase;
 import com.ambiental.iga_scanner.application.port.in.GetSessionHistoryUseCase;
+import com.ambiental.iga_scanner.application.port.in.ListChatSessionsUseCase;
+import com.ambiental.iga_scanner.application.port.in.ListDocumentsUseCase;
 import com.ambiental.iga_scanner.application.port.in.UploadPdfUseCase;
 import com.ambiental.iga_scanner.application.port.out.ChatGenerationPort;
 import com.ambiental.iga_scanner.application.port.out.ChatRetrievalPort;
@@ -9,6 +11,8 @@ import com.ambiental.iga_scanner.application.port.out.DocumentCatalogPort;
 import com.ambiental.iga_scanner.application.port.out.DocumentIngestionPort;
 import com.ambiental.iga_scanner.application.port.out.HistoryRepositoryPort;
 import com.ambiental.iga_scanner.application.service.ChatService;
+import com.ambiental.iga_scanner.application.service.ChatSessionQueryService;
+import com.ambiental.iga_scanner.application.service.DocumentCatalogQueryService;
 import com.ambiental.iga_scanner.application.service.HistoryQueryService;
 import com.ambiental.iga_scanner.application.service.PdfUploadService;
 import org.springframework.context.annotation.Bean;
@@ -28,6 +32,16 @@ class UseCaseConfiguration {
     @Bean
     GetSessionHistoryUseCase getSessionHistoryUseCase(HistoryRepositoryPort historyRepositoryPort) {
         return new HistoryQueryService(historyRepositoryPort);
+    }
+
+    @Bean
+    ListChatSessionsUseCase listChatSessionsUseCase(HistoryRepositoryPort historyRepositoryPort) {
+        return new ChatSessionQueryService(historyRepositoryPort);
+    }
+
+    @Bean
+    ListDocumentsUseCase listDocumentsUseCase(DocumentCatalogPort documentCatalogPort) {
+        return new DocumentCatalogQueryService(documentCatalogPort);
     }
 
     @Bean

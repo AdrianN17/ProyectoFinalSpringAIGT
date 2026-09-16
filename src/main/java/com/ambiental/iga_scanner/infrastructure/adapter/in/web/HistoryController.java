@@ -1,6 +1,8 @@
 package com.ambiental.iga_scanner.infrastructure.adapter.in.web;
 
 import com.ambiental.iga_scanner.application.port.in.GetSessionHistoryUseCase;
+import com.ambiental.iga_scanner.application.port.in.ListChatSessionsUseCase;
+import com.ambiental.iga_scanner.infrastructure.adapter.in.web.dto.ChatSessionSummaryDto;
 import com.ambiental.iga_scanner.infrastructure.adapter.in.web.dto.HistoryEntryDto;
 import java.util.List;
 import java.util.UUID;
@@ -12,9 +14,19 @@ import org.springframework.web.bind.annotation.RestController;
 class HistoryController {
 
     private final GetSessionHistoryUseCase getSessionHistoryUseCase;
+    private final ListChatSessionsUseCase listChatSessionsUseCase;
 
-    HistoryController(GetSessionHistoryUseCase getSessionHistoryUseCase) {
+    HistoryController(GetSessionHistoryUseCase getSessionHistoryUseCase,
+            ListChatSessionsUseCase listChatSessionsUseCase) {
         this.getSessionHistoryUseCase = getSessionHistoryUseCase;
+        this.listChatSessionsUseCase = listChatSessionsUseCase;
+    }
+
+    // Registered before /{session_id} in the source but matched first by Spring MVC anyway:
+    // literal path segments always take precedence over path variables at the same level.
+    @GetMapping("/api/history/sessions")
+    List<ChatSessionSummaryDto> listSessions() {
+        return listChatSessionsUseCase.listSessions().stream().map(ChatSessionSummaryDto::from).toList();
     }
 
     @GetMapping("/api/history/{session_id}")

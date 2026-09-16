@@ -56,7 +56,8 @@ public class ChatService implements AskChatUseCase {
     @Override
     public HistoryTrace ask(ChatCommand command) {
         UUID sessionId = command.sessionId() != null ? command.sessionId() : UUID.randomUUID();
-        List<RetrievedChunk> retrievedChunks = chatRetrievalPort.retrieve(command.question(), TOP_K);
+        List<RetrievedChunk> retrievedChunks =
+                chatRetrievalPort.retrieve(command.question(), TOP_K, command.documents());
         List<String> catalog = documentCatalogPort.listDocumentNames();
 
         String answer;

@@ -4,9 +4,11 @@ info:
   description: >-
     RAG-oriented API for iga-scanner: ask grounded questions over ingested PDF
     documents, upload new PDFs for ingestion, and inspect prior chat history.
-    Uploaded PDFs are ingested into a single shared knowledge base — retrieval
-    in /chat is not scoped per session. `sessionId` only groups chat turns
-    together for history/auditing purposes.
+    Uploaded PDFs are ingested into a shared knowledge base; retrieval in
+    /chat searches all of it by default, or only the documentId(s) passed in
+    the `documents` field when you want to scope a question to specific
+    files. `sessionId` only groups chat turns together for history/auditing
+    purposes and never filters retrieval on its own.
   version: 0.0.1
 servers:
   - url: /api
@@ -16,9 +18,11 @@ tags:
   - name: chat
     description: Ask questions against the RAG pipeline
   - name: history
-    description: Retrieve past chat traces
+    description: Retrieve past chat traces and registered sessions
   - name: pdf
     description: PDF ingestion for the vector store
+  - name: documents
+    description: Catalog of ingested PDF documents
 
 paths:
   /chat:
@@ -75,6 +79,24 @@ paths:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
 
+  /history/sessions:
+    get:
+      tags: [history]
+      summary: List every session id that has at least one recorded chat trace
+      description: >-
+        Useful to discover which sessionId values exist without knowing them
+        upfront, e.g. to resume a prior conversation from a different client.
+      operationId: listChatSessions
+      responses:
+        "200":
+          description: All registered sessions, most recently active first
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ChatSessionSummary"
+
   /pdf/upload:
     post:
       tags: [pdf]
@@ -116,6 +138,25 @@ paths:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
 
+  /documents:
+    get:
+      tags: [documents]
+      summary: List the catalog of ingested PDF documents
+      description: >-
+        Returns the identifier, original file name and ingestion timestamp of
+        every PDF uploaded so far, most recently ingested first. Use the
+        documentId values here to scope /chat questions to specific documents.
+      operationId: listDocuments
+      responses:
+        "200":
+          description: Ingested document catalog
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/DocumentSummary"
+
 components:
   schemas:
     ChatRequest:
@@ -126,8 +167,8 @@ components:
           format: uuid
           description: >-
             Existing session to append to; omit to start a new session. Only
-            used to group history entries — does not filter which documents
-            are retrieved (retrieval always searches the shared knowledge base).
+            used to group history entries — does not by itself filter which
+            documents are retrieved.
         question:
           type: string
           minLength: 1
@@ -135,6 +176,16 @@ components:
         user:
           type: string
           description: Identifier of the requesting user, for auditing
+          nullable: true
+        documents:
+          type: array
+          description: >-
+            Optional list of documentId values (see GET /documents) to scope
+            retrieval to. When omitted or empty, searches the entire shared
+            knowledge base across all ingested documents.
+          items:
+            type: string
+            format: uuid
           nullable: true
       required:
         - question
@@ -174,6 +225,43 @@ components:
         - question
         - answer
         - createdAt
+
+    DocumentSummary:
+      type: object
+      description: Catalog entry registered in Azure SQL when a PDF is ingested into Qdrant
+      properties:
+        documentId:
+          type: string
+          format: uuid
+        fileName:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+          description: Timestamp when the document was ingested
+      required:
+        - documentId
+        - fileName
+        - createdAt
+
+    ChatSessionSummary:
+      type: object
+      properties:
+        sessionId:
+          type: string
+          format: uuid
+        lastActivityAt:
+          type: string
+          format: date-time
+          description: Timestamp of the most recent chat trace in this session
+        messageCount:
+          type: integer
+          format: int64
+          description: Number of chat traces recorded under this session
+      required:
+        - sessionId
+        - lastActivityAt
+        - messageCount
 
     PdfUploadResponse:
       type: object
